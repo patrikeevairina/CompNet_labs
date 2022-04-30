@@ -16,11 +16,11 @@ int main()
 	struct sockaddr_in servaddr;
 	char *client_msg = "CLIENT lookup";
 	char server_msg[MAXLEN];
-	struct timeval tval;
+/*	struct timeval tval;
 
-	tval.tv_sec  = 10;
+	tval.tv_sec  = 3;
 	tval.tv_usec = 0;
-	
+*/	
 	if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 	{
 		perror("error");
@@ -33,13 +33,48 @@ int main()
 	servaddr.sin_addr.s_addr = INADDR_ANY;
 	
 	int n, len;
+	int broadcast = 1;
+	setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast));
 	
-	sendto(sockfd, (const char*)client_msg, strlen(client_msg),
-			MSG_CONFIRM, (const struct sockaddr*)&servaddr,
-			sizeof(servaddr));
+	//sendto(sockfd, (const char*)client_msg, strlen(client_msg),
+	//		MSG_CONFIRM, (const struct sockaddr*)&servaddr,
+	//		sizeof(servaddr));
+	//printf("lookup msg sent\n");
+	//fd_set recset;
+	//FD_ZERO(&recset);
+	//FD_SET(sockfd, &recset);
+	int res = 0;
+	while(!res)
+{	
+	struct timeval tval;
+
+        tval.tv_sec  = 3;
+        tval.tv_usec = 0;
+
+
+	fd_set recset;
+        FD_ZERO(&recset);
+        FD_SET(sockfd, &recset);
+	res = select(sockfd + 1, &recset, NULL, NULL, &tval);
+	switch(res)
+	{
+		case -1:
+			perror("select error");
+			return -2;
+			break;
+		case 0:
+			sendto(sockfd, (const char*)client_msg, strlen(client_msg),
+                        MSG_CONFIRM, (const struct sockaddr*)&servaddr,
+                        sizeof(servaddr));
+			break;
+		default:
+			break;
+	}
+}	
 	n = recvfrom(sockfd, (char*)server_msg, MAXLEN, MSG_WAITALL,
 			(struct sockaddr*)&servaddr, &len);
 	server_msg[n] = '\0';
+	//printf("server msg: %s\n", server_msg);
 	char server_str[INET_ADDRSTRLEN];
 	inet_ntop(AF_INET, &(servaddr.sin_addr), server_str, INET_ADDRSTRLEN);
 	printf("SERVER found %s\n", server_str);
